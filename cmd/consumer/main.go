@@ -3,6 +3,8 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"time"
 
 	"github.com/flaviosenne/go-intensivo/internal/order/infra/database"
 	"github.com/flaviosenne/go-intensivo/internal/order/usecase"
@@ -40,6 +42,7 @@ func main() {
 			panic(err)
 		}
 		msg.Ack(false)
-		println(outputDTO) // thread 1 (pertence a thread do main)
+		fmt.Print(outputDTO) // thread 1 (pertence a thread do main)
+		time.Sleep(500 * time.Millisecond)
 	}
 }
