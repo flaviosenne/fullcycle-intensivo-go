@@ -28,9 +28,19 @@ func main() {
 	}
 	defer ch.Close()
 	out := make(chan amqp.Delivery) // chanel do go
+	foverever := make(chan bool)    // outro channel
 	go rabbitmq.Consume(ch, out)    // thread 2
 
-	for msg := range out {
+	qtdWorkers := 150
+	for i := 1; i <= qtdWorkers; i++ {
+		go worker(out, &uc, i) // Criando mais threads
+	}
+	<-foverever // nesse momento a aplicação fica travada pois em nenhum momento esse canal recebeu alguma msg
+}
+
+func worker(deliveryMessage <-chan amqp.Delivery, uc *usecase.CalculateFinalPriceUseCase, workerId int) {
+
+	for msg := range deliveryMessage {
 		var inputDTO usecase.OrderInputDTO
 
 		err := json.Unmarshal(msg.Body, &inputDTO)
@@ -42,7 +52,7 @@ func main() {
 			panic(err)
 		}
 		msg.Ack(false)
-		fmt.Print(outputDTO) // thread 1 (pertence a thread do main)
-		time.Sleep(500 * time.Millisecond)
+		fmt.Printf("Worker %d has processed order %s\n", workerId, outputDTO.ID) // thread 1 (pertence a thread do main)
+		time.Sleep(1 * time.Second)
 	}
 }
