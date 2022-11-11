@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/flaviosenne/go-intensivo/internal/order/infra/database"
@@ -28,14 +29,24 @@ func main() {
 	}
 	defer ch.Close()
 	out := make(chan amqp.Delivery) // chanel do go
-	foverever := make(chan bool)    // outro channel
 	go rabbitmq.Consume(ch, out)    // thread 2
 
-	qtdWorkers := 150
+	qtdWorkers := 100
 	for i := 1; i <= qtdWorkers; i++ {
 		go worker(out, &uc, i) // Criando mais threads
 	}
-	<-foverever // nesse momento a aplicação fica travada pois em nenhum momento esse canal recebeu alguma msg
+
+	http.HandleFunc("/total", func(w http.ResponseWriter, r *http.Request) {
+		getTotalUC := usecase.GetTotalUseCase{OrderRepository: repository}
+		total, err := getTotalUC.Execute()
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(err.Error()))
+		}
+		json.NewEncoder(w).Encode(total)
+	})
+
+	http.ListenAndServe(":8080", nil) // http cria mais uma thread
 }
 
 func worker(deliveryMessage <-chan amqp.Delivery, uc *usecase.CalculateFinalPriceUseCase, workerId int) {
